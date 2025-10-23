@@ -1,0 +1,56 @@
+name: Flask CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, devops ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        cd main
+        pip install -r requirements.txt
+        
+    - name: Run tests
+      run: |
+        cd main
+        python -m pytest tests/ -v
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Build Docker image
+      run: |
+        cd main
+        docker build -t flask-lab-app:${{ github.sha }} .
+        
+    - name: Test Docker container
+      run: |
+        cd main
+        # Start container in background
+        docker run -d -p 5000:5000 --name test-container flask-lab-app:${{ github.sha }}
+        # Wait for app to start
+        sleep 10
+        # Check if container is running
+        docker ps
+        # Clean up
+        docker stop test-container
+        docker rm test-container
